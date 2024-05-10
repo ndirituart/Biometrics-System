@@ -1,19 +1,19 @@
 from twilio.rest import Client
-from tkinter import *
+from tkinter import PhotoImage, FLAT, StringVar
 from tkinter.ttk import *
 from ttkthemes import themed_tk as tk
 from tkinter import messagebox
 import smtplib
 import random
 import time
+import os
+import pyotp
 
-
-class otp:
+class OTPVerification:
 
     def __init__(self, window):
-
-        """takes window to display all the attributes and Methods for this class"""
-
+        #takes window to display all the attributes and methods for this class
+        self.image_panel = None
         self.window = window
         self.window.geometry("1366x720+0+0")
         self.window.title("Account Verification Page")
@@ -21,76 +21,77 @@ class otp:
         self.start()
 
     def start(self):
+        #starts the verification process of a new user
+        try:
+            self.login_frame = PhotoImage(file='otp_verification_frame.png')
+        except Exception as e:
+            print("Error loading image:", e)
+            self.login_frame = None
 
-        """it starts verification process"""
+        if self.login_frame:PhotoImage(file='otp_verification_frame.png')
+           self.image_panel = Label(self.window, image=self.login_frame)
+           self.image_panel.pack(fill='both', expand='yes')
 
-        self.login_frame = PhotoImage(file='otp_verification_frame.png')
-        self.image_panel = Label(self.window, image=self.login_frame)
-        self.image_panel.pack(fill='both', expand='yes')
+           self.txt = "Account Verification"
+           self.count=0
+           self.color=[255,255,255]
+           self.heading = Label(self.window, text=self.txt, font=('yu gothic ui', 30, "bold"), relief=FLAT)
+           self.heading.place(x=470, y=70, width=450)
 
-        self.txt = "Account Verification"
-        self.count = 0
-        self.text = ''
-        self.color = ["#4f4e4d", "#f29844", "red2"]
-        self.heading = Label(self.window, text=self.txt, font=('yu gothic ui', 30, "bold"), relief=FLAT)
-        self.heading.place(x=470, y=70, width=450)
+           # ============================Email========================================
 
-        # ============================Email========================================
+           self.email_label = Label(self.window, text="Enter your email or mobile number ", font=("yu gothic ui", 13, "bold"))
+           self.email_label.place(x=495, y=180)
+           self.email_entry = Entry(self.window, font=("yu gothic ui semibold", 12))
+           self.email_entry.place(x=530, y=210, width=380)
 
-        self.email_label = Label(self.window, text="Email or mobile number ", font=("yu gothic ui", 13, "bold"))
-        self.email_label.place(x=495, y=180)
-        self.email_entry = Entry(self.window, font=("yu gothic ui semibold", 12))
-        self.email_entry.place(x=530, y=210, width=380)
+           # ============================OTP=========================================
 
-        # ============================OTP=========================================
+           self.otp_label = Label(self.window, text="Recent OTP ", font=("yu gothic ui", 13, "bold"))
+           self.otp_label.place(x=495, y=295)
+           self.otp_entry = Entry(self.window, font=("yu gothic ui semibold", 12))
+           self.otp_entry.place(x=530, y=325, width=380)
 
-        self.otp_label = Label(self.window, text="Recent OTP ", font=("yu gothic ui", 13, "bold"))
-        self.otp_label.place(x=495, y=295)
-        self.otp_entry = Entry(self.window, font=("yu gothic ui semibold", 12))
-        self.otp_entry.place(x=530, y=325, width=380)
+           # ============================Verify Button================================
 
-        # ============================Verify Button================================
+           self.verify = PhotoImage(file='verify_button.png')
+           self.verify_button = Button(self.window, image=self.verify, cursor="hand2", command=self.click_verification)
+           self.verify_button.place(x=640, y=403)
 
-        self.verify = PhotoImage(file='verify.png')
-        self.verify_button = Button(self.window, image=self.verify, cursor="hand2", command=self.click_verification)
-        self.verify_button.place(x=640, y=403)
+           # ============================Submit button================================
 
-        # ============================Submit button================================
+           self.send_otp = PhotoImage(file='send_otp.png')
+           self.send_otp_button = Button(self.window, image=self.send_otp, cursor="hand2", command=self.validation)
+           self.send_otp_button.place(x=500, y=503)
 
-        self.send_otp = PhotoImage(file='send_otp.png')
-        self.send_otp_button = Button(self.window, image=self.send_otp, cursor="hand2", command=self.validation)
-        self.send_otp_button.place(x=500, y=503)
+           # ============================Exit button================================
 
-        # ============================Exit button================================
+           self.exit_img = PhotoImage(file='exit.png')
+           self.exit_button = Button(self.window, image=self.exit_img, cursor="hand2", command=self.click_exit)
+           self.exit_button.place(x=783, y=503)
 
-        self.exit_img = PhotoImage(file='exit.png')
-        self.exit_button = Button(self.window, image=self.exit_img, cursor="hand2", command=self.click_exit)
-        self.exit_button.place(x=783, y=503)
+           # =============================timer button================================
 
-        # =============================timer button================================
-
-        self.timer_label = Label(self.window, text='Countdown', font=("yu gothic ui", 13, "bold"))
-        self.timer_label.place(x=670, y=590)
-        self.sec = StringVar()
-        self.sec_entry = Entry(self.window, textvariable=self.sec, width=2, font=("yu gothic ui semibold", 12))
-        self.sec_entry.place(x=725, y=550)
-        self.sec.set('00')
-        self.mins = StringVar()
-        self.mins_entry = Entry(self.window, textvariable=self.mins, width=2, font=("yu gothic ui semibold", 12))
-        self.mins_entry.place(x=700, y=550)
-        self.mins.set('02')
-        self.hrs = StringVar()
-        self.hrs_entry = Entry(self.window, textvariable=self.hrs, width=2, font=("yu gothic ui semibold", 12))
-        self.hrs_entry.place(x=675, y=550)
-        self.hrs.set('00')
+           self.timer_label = Label(self.window, text='Countdown', font=("yu gothic ui", 13, "bold"))
+           self.timer_label.place(x=670, y=590)
+           self.sec = StringVar()
+           self.sec_entry = Entry(self.window, textvariable=self.sec, width=2, font=("yu gothic ui semibold", 12))
+           self.sec_entry.place(x=725, y=550)
+           self.sec.set('00')
+           self.mins = StringVar()
+           self.mins_entry = Entry(self.window, textvariable=self.mins, width=2, font=("yu gothic ui semibold", 12))
+           self.mins_entry.place(x=700, y=550)
+           self.mins.set('02')
+           self.hrs = StringVar()
+           self.hrs_entry = Entry(self.window, textvariable=self.hrs, width=2, font=("yu gothic ui semibold", 12))
+           self.hrs_entry.place(x=675, y=550)
+           self.hrs.set('00')
 
     def validation(self):
-
-        """validates if email entry field is left empty, if True
-        returns info message displaying to enter the email address"""
+        #validates if email entry field is left empty and gives feedback / warning
 
         if self.email_entry.get() == '':
-            messagebox.showinfo("Empty", "Please Enter Email Address or mobile")
+            messagebox.showinfo("Empty", "Please Enter Email Address or mobile phone number")
         else:
             self.click_send_otp()
 
@@ -116,8 +117,7 @@ class otp:
 
     def click_send_otp(self):
 
-        """Sends and OTP to the email that a user uses to create admin account, BaseException is handled to avoid
-        internet issue or wrong email address that may often happen due to use"""
+        #Sends an OTP to the email that a user uses to create admin account, BaseException is handled to avoid internet issue or wrong email address that may often happen due to use"""
 
         if self.email_entry.get() != "":
 
@@ -129,16 +129,16 @@ class otp:
                         server = smtplib.SMTP("smtp.gmail.com", 587)
                         server.starttls()
 
-                        server.login("otpv234@gmail.com", "Otpveri#234")
+                        server.login("patiencendiritu002@gmail.com", "Oti1voJnr")
                         self.e = str(self.email_entry.get())
-                        server.sendmail("otpv234@gmail.com", f"{self.e}", f"{self.value}")
+                        server.sendmail("patiencendiritu002@gmail.com", f"{self.e}", f"{self.value}")
 
-                        messagebox.showinfo("Success", "OTP have been sent")
+                        messagebox.showinfo("Success", "OTP has been sent")
 
                     elif len(self.email_entry.get()) == 10:
-                        age1 = "+91" + self.email_entry.get()
+                        age1 = "+254" + self.email_entry.get()
                         client = Client("Enter SID", "Enter your credential here")
-                        client.messages.create(to=(age1), from_="+13863563540", body=self.value)
+                        client.messages.create(to=(age1), from_="+254799076883", body=self.value)
 
 
                 except BaseException as msg:
@@ -152,9 +152,7 @@ class otp:
             messagebox.showerror("Empty", "Please Enter Email Address or mobile \nand Click Send OTP")
 
     def click_verification(self):
-
-        """if OTP entry field is not empty, it will verify the actual OTP with user OTP that they
-        entered in OTP field"""
+      #if BOTH fields are filled, we verify the actual OTP sent
 
         if self.otp_entry.get() != "":
             print(self.otp_entry.get())
@@ -171,12 +169,11 @@ class otp:
 
     def click_exit(self):
 
-        """Terminates the program when if returned True"""
+        #Terminates the program when if returned True
 
         ask = messagebox.askyesnocancel("Confirm Exit", "Are you sure you want to Exit\nSystem?")
         if ask is True:
             self.window.withdraw()
-
 
 def win():
     window = tk.ThemedTk()
@@ -188,3 +185,13 @@ def win():
 
 if __name__ == '__main__':
     win()
+
+def run_application():
+    window = tk.ThemedTk()
+    window.get_themes()
+    window.set_theme("arc")
+    OTPVerification(window)
+    window.mainloop()
+
+if __name__ == '__main__':
+    run_application()
